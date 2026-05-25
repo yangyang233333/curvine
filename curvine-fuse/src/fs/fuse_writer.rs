@@ -21,7 +21,7 @@ use curvine_common::error::FsError;
 use curvine_common::fs::{Path, Writer};
 use curvine_common::state::{FileAllocOpts, FileStatus};
 use curvine_common::FsResult;
-use log::error;
+use log::{error, warn};
 use orpc::runtime::{RpcRuntime, Runtime};
 use orpc::sync::channel::{AsyncChannel, AsyncReceiver, AsyncSender, CallChannel, CallSender};
 use orpc::sync::ErrorMonitor;
@@ -142,21 +142,39 @@ impl FuseWriter {
                             size: len as u32,
                             padding: 0,
                         });
-                    reply.send_rep(res).await?;
+                    let is_io_err = res.is_err();
+                    if let Err(e) = reply.send_rep(res).await {
+                        warn!("fuse writer: failed to send write reply: {e}");
+                    }
+                    if is_io_err {
+                        return Err(FsError::common("fuse_write failed"));
+                    }
                 }
 
                 WriteTask::Flush(tx, reply) => {
                     let res = writer.flush().await;
+                    let is_io_err = res.is_err();
                     if let Some(reply) = reply {
-                        reply.send_rep(res).await?;
+                        if let Err(e) = reply.send_rep(res).await {
+                            warn!("fuse writer: failed to send flush reply: {e}");
+                        }
+                    }
+                    if is_io_err {
+                        return Err(FsError::common("flush failed"));
                     }
                     tx.send(1)?;
                 }
 
                 WriteTask::Complete(tx, reply) => {
                     let res = writer.complete().await;
+                    let is_io_err = res.is_err();
                     if let Some(reply) = reply {
-                        reply.send_rep(res).await?;
+                        if let Err(e) = reply.send_rep(res).await {
+                            warn!("fuse writer: failed to send complete reply: {e}");
+                        }
+                    }
+                    if is_io_err {
+                        return Err(FsError::common("complete failed"));
                     }
                     tx.send(1)?;
                 }
