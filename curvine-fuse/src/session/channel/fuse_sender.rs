@@ -104,9 +104,9 @@ impl<T: FileSystem> FuseSender<T> {
                         Err(e) => {
                             let os_errno = e.raw_error().raw_os_error();
                             // Keep the existing diagnostic log alongside the metric.
-                            if os_errno != Some(libc::ENOENT) {
-                                warn!("error send unique {}: {}", id, e);
-                            }
+                            // if os_errno != Some(libc::ENOENT) {
+                            warn!("error send unique {}: {}", id, e);
+                            // }
                             WriteOutcome::Failed { errno: os_errno }
                         }
                     };
