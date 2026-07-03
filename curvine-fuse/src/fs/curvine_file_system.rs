@@ -1128,6 +1128,7 @@ impl fs::FileSystem for CurvineFileSystem {
 
     // Get file system profile information.
     async fn stat_fs(&self, _: StatFs<'_>) -> FuseResult<fuse_kstatfs> {
+        let start = TimeSpent::new();
         let info = self.fs.get_master_info().await?;
 
         let block_size = 4 * ByteUnit::KB as u32;
@@ -1147,6 +1148,7 @@ impl fs::FileSystem for CurvineFileSystem {
             spare: [0; 6],
         };
 
+        info!("stat_fs use {} ms", start.used_ms());
         Ok(res)
     }
 
@@ -1224,6 +1226,7 @@ impl fs::FileSystem for CurvineFileSystem {
     }
 
     async fn open(&self, op: Open<'_>) -> FuseResult<fuse_open_out> {
+        let start = TimeSpent::new();
         let path = self.state.get_path(op.header.nodeid)?;
         // Check file access permissions before opening
         let action = OpenAction::try_from(op.arg.flags)?;
@@ -1282,6 +1285,7 @@ impl fs::FileSystem for CurvineFileSystem {
             self.invalidate_cache(&path, INVAL_REASON_OPEN_WRITE)?;
         }
 
+        info!("[qyy][fuse-open]open {} use {} ms", path, start.used_ms());
         Ok(entry)
     }
 
